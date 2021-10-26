@@ -158,16 +158,28 @@ namespace ParquetSharp
                 throw new Exception("elementType is an array but schema does not match the expected layout");
             }
 
-            if (schemaNodes.Length == 1)
+            if (schemaNodes.Length >= 1)
             {
-                bool isOptional = schemaNodes[0].Repetition == Repetition.Optional;
+                var slicedNodes = schemaNodes;
+                short pathNullDefinitionLevel = nullDefinitionLevel;
+                while (slicedNodes.Length > 1 && slicedNodes[0].LogicalType.Type != LogicalTypeEnum.List) // value may be nested in structs
+                {
+                    bool isStructOptional = slicedNodes[0].Repetition == Repetition.Optional;
+                    pathNullDefinitionLevel += (short) (slicedNodes[0].Repetition == Repetition.Optional ? 1 : 0);
+                    slicedNodes = slicedNodes.Slice(1);
+                }
 
-                short leafDefinitionLevel = isOptional ? (short) (nullDefinitionLevel + 1) : nullDefinitionLevel;
-                short leafNullDefinitionLevel = isOptional ? nullDefinitionLevel : (short) -1;
+                if (slicedNodes.Length == 1 && slicedNodes[0].LogicalType.Type != LogicalTypeEnum.List)
+                {
+                    bool isOptional = slicedNodes[0].Repetition == Repetition.Optional;
 
-                WriteArrayFinalLevel(array, repetitionLevel, firstLeafRepLevel, leafDefinitionLevel, leafNullDefinitionLevel);
+                    short leafDefinitionLevel = isOptional ? (short) (pathNullDefinitionLevel + 1) : pathNullDefinitionLevel;
+                    short leafNullDefinitionLevel = isOptional ? pathNullDefinitionLevel : (short) -1;
+                    
+                    WriteArrayFinalLevel(array, repetitionLevel, firstLeafRepLevel, leafDefinitionLevel, leafNullDefinitionLevel);
 
-                return;
+                    return;
+                }
             }
 
             throw new Exception("ParquetSharp does not understand the schema used");

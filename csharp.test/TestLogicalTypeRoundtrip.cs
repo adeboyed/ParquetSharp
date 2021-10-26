@@ -289,6 +289,48 @@ namespace ParquetSharp.Test
         }
 
         [Test]
+        public static void TestNestedArrayOfStructs([Values(Repetition.Required, Repetition.Optional)] Repetition structRepetition)
+        {
+            // Create a 2d int array
+            const int arraySize = 100;
+            int[]?[] values = new int[arraySize][];
+
+            for (var i = 0; i < arraySize; i++)
+            {
+                values[i] = (i % 3 == 0) ? null : Enumerable.Range(0, arraySize).ToArray();
+            }
+
+            using var buffer = new ResizableBuffer();
+
+            using (var output = new BufferOutputStream(buffer))
+            {
+                var ints = new PrimitiveNode("ints", Repetition.Required, LogicalType.None(), PhysicalType.Int32);
+                var strt = new GroupNode("struct", structRepetition, new[] {ints});
+                var element = new GroupNode("element", Repetition.Required, new [] { strt });
+                var list = new GroupNode("list", Repetition.Repeated, new[] {element});
+                var column = new GroupNode("column", Repetition.Optional, new[] {list}, LogicalType.List());
+                var schemaNode = new GroupNode("schema", Repetition.Required, new[] {column});
+
+                using var builder = new WriterPropertiesBuilder();
+                using var fileWriter = new ParquetFileWriter(output, schemaNode, builder.Build());
+                using var rowGroupWriter = fileWriter.AppendBufferedRowGroup();
+
+                using var colWriter = rowGroupWriter.Column(0).LogicalWriter<int[]?>();
+                colWriter.WriteBatch(values);
+                fileWriter.Close();
+            }
+
+            using var input = new BufferReader(buffer);
+            using var fileReader = new ParquetFileReader(input);
+            using var rowGroupReader = fileReader.RowGroup(0);
+            using var colReader = rowGroupReader.Column(0).LogicalReader<int[]?>();
+
+            Assert.AreEqual(values, colReader.ReadAll((int) rowGroupReader.MetaData.NumRows));
+
+            fileReader.Close();
+        }
+
+        [Test]
         public static void TestBigArrayRoundtrip()
         {
             // Create a big array of float arrays. Try to detect buffer-size related issues.

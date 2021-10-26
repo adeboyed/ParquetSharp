@@ -181,11 +181,24 @@ namespace ParquetSharp
                 throw new Exception("elementType is an array but schema does not match the expected layout");
             }
 
-            if (schemaNodes.Length == 1)
+            if (schemaNodes.Length >= 1)
             {
-                bool optional = schemaNodes[0].Repetition == Repetition.Optional;
+                var slicedNodes = schemaNodes;
+                var optionalInTree = false;
+                while (slicedNodes.Length > 1 && slicedNodes[0].LogicalType.Type != LogicalTypeEnum.List) // Our leaf may be nestedin structs
+                {
+                    bool isStructOptional = slicedNodes[0].Repetition == Repetition.Optional;
+                    nullDefinitionLevel += (short) (isStructOptional ? 1 : 0);
+                    optionalInTree = optionalInTree || isStructOptional;
+                    slicedNodes = slicedNodes.Slice(1);
+                }
 
-                return ReadArrayLeafLevel(valueReader, converter, optional, (short) repetitionLevel, (short) nullDefinitionLevel);
+                if (slicedNodes.Length == 1 && slicedNodes[0].LogicalType.Type != LogicalTypeEnum.List)
+                {
+                    bool optional = optionalInTree || slicedNodes[0].Repetition == Repetition.Optional; 
+                    
+                    return ReadArrayLeafLevel(valueReader, converter, optional, (short) repetitionLevel, (short) nullDefinitionLevel);
+                }
             }
 
             throw new Exception("ParquetSharp does not understand the schema used");
