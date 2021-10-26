@@ -1,8 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(OS)'=='Windows_NT'">$(TargetFrameworks);net472</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1</TargetFrameworks>
     <LangVersion>9.0</LangVersion>
     <Nullable>enable</Nullable>
     <AssemblyName>ParquetSharp.Test</AssemblyName>
@@ -23,6 +22,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\csharp\ParquetSharp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="TestFiles\sample_nested.parquet">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

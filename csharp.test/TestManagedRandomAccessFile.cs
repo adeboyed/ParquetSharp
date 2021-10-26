@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using ParquetSharp.IO;
@@ -8,6 +9,59 @@ namespace ParquetSharp.Test
     [TestFixture]
     internal static class TestManagedRandomAccessFile
     {
+        
+        [Test]
+        public static void TestReadNestedList()
+        {
+            var directory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            var path = Path.Combine(directory!, "TestFiles/sample_nested.parquet");
+
+            using var fileReader = new ParquetFileReader(path);
+            var rowGroupReader = fileReader.RowGroup(0);
+
+            // some_id
+            var column0 = rowGroupReader.Column(0);
+            Console.WriteLine();
+            Console.WriteLine(column0.ColumnDescriptor.Path);
+            Console.WriteLine("--------------------------------------");
+
+            var column0Reader = column0.LogicalReader<string?>();
+            var contents0 = column0Reader.ReadAll(2);
+            Assert.IsNotEmpty(contents0);
+            TestContext.Out.WriteLine(string.Join("\n", contents0));
+
+            // struct.list.item.string_in_struct
+            var column1 = rowGroupReader.Column(1);
+            Console.WriteLine();
+            Console.WriteLine(column1.ColumnDescriptor.Path);
+            Console.WriteLine("--------------------------------------");
+
+            var column1Reader = column1.LogicalReader<long?[]>();
+            var contents1 = column1Reader.ReadAll(2);
+            Assert.IsNotEmpty(contents1);
+
+            // struct.list.item.array.list.item
+            var column2 = rowGroupReader.Column(2);
+            Console.WriteLine();
+            Console.WriteLine(column2.ColumnDescriptor.Path);
+            Console.WriteLine("--------------------------------------");
+
+            var column2Reader = column2.LogicalReader<long?[][]>();
+            var contents2 = column2Reader.ReadAll(2);
+            Assert.IsNotEmpty(contents2);
+
+             // struct.list.item.string_in_struct
+            var column3 = rowGroupReader.Column(3);
+            Console.WriteLine();
+            Console.WriteLine(column3.ColumnDescriptor.Path);
+            Console.WriteLine("--------------------------------------");
+
+            var column3Reader = column3.LogicalReader<string[]>();
+            var contents3 = column3Reader.ReadAll(2);
+            Assert.IsNotEmpty(contents3);
+        }
+
+        
         [Test]
         public static void TestInMemoryRoundTrip()
         {

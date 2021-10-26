@@ -160,6 +160,20 @@ namespace ParquetSharp
             ReadOnlySpan<Node> schemaNodes, Type elementType, LogicalRead<TLogical, TPhysical>.Converter converter,
             BufferedReader<TPhysical> valueReader, int numArrayEntriesToRead, int repetitionLevel, int nullDefinitionLevel)
         {
+            Console.WriteLine();
+            Console.WriteLine("ReadArray");
+            Console.WriteLine(elementType.ToString());
+
+
+            Console.WriteLine("schemaNodes");
+            foreach(var node in schemaNodes)
+            {
+                Console.WriteLine(node.Path);
+            }
+
+            Console.WriteLine(elementType.IsArray);
+
+
             if (elementType.IsArray && elementType != typeof(byte[]))
             {
                 if (schemaNodes.Length >= 2)
@@ -181,11 +195,25 @@ namespace ParquetSharp
                 throw new Exception("elementType is an array but schema does not match the expected layout");
             }
 
-            if (schemaNodes.Length == 1)
+            if (schemaNodes.Length >= 1)
             {
-                bool optional = schemaNodes[0].Repetition == Repetition.Optional;
+                Console.WriteLine("schemaNodes.Length >= 1");
+                // Check that all nodes up to the leaf are simply structs.
+                var slicedNodes = schemaNodes;
 
-                return ReadArrayLeafLevel(valueReader, converter, optional, (short) repetitionLevel, (short) nullDefinitionLevel);
+                while (slicedNodes.Length > 1 && slicedNodes[0].LogicalType.Type != LogicalTypeEnum.List) // Our list may be nested in structs
+                {
+                    Console.WriteLine("slice it up!");
+                    nullDefinitionLevel += (short) (slicedNodes[0].Repetition == Repetition.Optional ? 1 : 0);
+                    slicedNodes = slicedNodes.Slice(1); // skip ahead to the first list node in hierarchy 
+                }
+
+                if (slicedNodes.Length == 1 && slicedNodes[0].LogicalType.Type != LogicalTypeEnum.List)
+                {
+                    bool optional = slicedNodes[0].Repetition == Repetition.Optional; // Will need to check all of the optionals!
+
+                    return ReadArrayLeafLevel(valueReader, converter, optional, (short) repetitionLevel, (short) nullDefinitionLevel);
+                }
             }
 
             throw new Exception("ParquetSharp does not understand the schema used");
